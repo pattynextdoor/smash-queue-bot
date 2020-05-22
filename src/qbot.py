@@ -1,5 +1,6 @@
 import os
 import discord
+from discord.ext import commands
 from dotenv import load_dotenv
 
 # Load local environment vars from .env
@@ -7,20 +8,20 @@ load_dotenv()
 
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-client = discord.Client()
+client = commands.Bot(command_prefix='q!')
 
-@client.event
-async def on_ready():
-    name = client.user.name
-    user_id = client.user.id
-    print(f'Logged in as {name} with user id {user_id}')
+@client.command()
+async def load(ctx, extension):
+    client.load_extension(f'cogs.{extension}')
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+@client.command()
+async def unload(ctx, extension):
+    client.unload_extension(f'cogs.{extension}')
 
-    if message.content.startswith('q!list'):
-        print('q!list command run!')
+print(os.listdir('./cogs'))
+
+for filename in os.listdir('./cogs'):
+    if filename.endswith('.py'):
+        client.load_extension(f'cogs.{filename[:-3]}')
 
 client.run(DISCORD_TOKEN)
