@@ -5,7 +5,7 @@ from .helpers.queue_helper import Queue
 class QueueManager(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.queues = set() 
+        self.queues = {} 
 
     # Listeners
 
@@ -16,37 +16,112 @@ class QueueManager(commands.Cog):
         print(f'Initialized {uname} with id {uid}')
 
     # Commands
+
     @commands.command()
     async def open(self, ctx, *args):
+        """ Opens a new queue"""
+        def is_queue_open(author):
+            for queue in self.queues.values():
+                if queue.owner == author:
+                    return True
+            return False
+
         author_uname = ctx.message.author.name
-        new_queue = None
 
-        if (args):
-            new_queue = Queue(args[0], author_uname)
-        else:
-            new_queue = Queue(author_uname, author_uname)
+        if is_queue_open(author_uname):
+            await ctx.send(f'Player `{author_uname}` already has an active queue open.')
+            return
 
-        self.queues.add(new_queue)
+        name = args[0] if args else author_uname # If no queue_name argument is specified, then we can default it to the owner's username
+        new_queue = Queue(name, author_uname)
+
+        self.queues.update({new_queue.name: new_queue})
 
         await ctx.send(f'New queue created with name `{new_queue.name}`')
 
     @commands.command()
+    async def list_queues(self, ctx):
+        """ Lists all active queues """
+        if len(self.queues) == 0:
+            await ctx.send('There are no active queues.')
+            return
+
+        else: 
+            full_str = (', '.join(list(self.queues.keys())))
+            await ctx.send(f'Active queues: {full_str}')
+
+    @commands.command()
     async def list(self, ctx, *args):
-        def generate_queue_list_string(self):
-            list_str = ''
+        """ List all players in a given queue """
+        if (len(args) == 0):
+            await ctx.send('To list the players in a queue, please specify a queue_name. Example: `!list myQueue`')
+            return
 
-            for queue in self.queues:
-                list_str += f'\n{queue.name}\n'
-            return list_str
+        q_name = args[0]
+        uname = ctx.message.author.name
 
-        full_str = ("```Current active queues:"
-                    "---------------"
-                     f"{generate_queue_list_string(self)}\n"
-                     "Need a list of players in a queue instead? Try \"q!list <queue_name>\"```")
+        try:
+            spec_queue = self.queues[q_name]
+        except KeyError:
+            await ctx.send(f'Could not find the given queue `{q_name}`.')
 
-        await ctx.send(full_str)
+        if len(spec_queue.list) == 0:
+            await ctx.send(f'Queue `{q_name}` is currently empty!')
+            return
+        else:
+            full_str = (', '.join(spec_queue.list))
+            await ctx.send(f'Players in queue {q_name}: {full_str}')
 
 
+    @commands.command()
+    async def join(self, ctx, *args):
+        """ Join a given queue """
+        if len(args) == 0:
+            await ctx.send('No queue name specified! Example: `q!join myqueue`')
+            return
+        else:
+            q_name = args[0]
+            uname = ctx.message.author.name
+
+            if not self.__queue_exists(q_name, self.queues):
+                await ctx.send(f'Could not find the given queue `{q_name}`.')
+                return
+
+            spec_queue = self.queues[q_name]
+
+            try:
+                spec_queue.add(uname)
+                await ctx.send(f'`{uname}` has been added to the queue `{spec_queue.name}`.')
+            except RuntimeError:
+                if (len(spec_queue.list) == spec_queue.cap):
+                    await ctx.send(f'Could not add new player `{uname}` to the queue `{spec_queue.name}` due to a full capacity of `{spec.queue.cap}`')
+                else:
+                    await ctx.send(f'Player `{uname}` is already in the queue `{spec_queue.name}`.')
+    
+    @commands.command()
+    async def leave(self, ctx, *args):
+        """ Leave a given queue """
+        if len(args) == 0:
+            await ctx.send('No queue name specified! Example: `q!leave myqueue`')        
+            return
+        else:
+            q_name = args[0]
+            uname = ctx.message.author.name
+
+            if not self.__queue_exists(q_name, self.queues):
+                await ctx.send(f'Could not find the given queue `{q_name}`.')
+                return
+            
+            spec_queue = self.queues[args[0]]
+
+            try:
+                spec_queue.remove(uname)
+                await ctx.send(f'`{uname}` has been removed from the queue `{spec_queue.name}`')
+            except RuntimeError:
+                await ctx.send(f'`{uname}` is not in the queue.')
+    
+    def __queue_exists(self, q_name, q_map):
+        return q_name in q_map.keys()
 
 def setup(client):
     client.add_cog(QueueManager(client))
