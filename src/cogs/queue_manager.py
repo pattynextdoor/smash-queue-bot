@@ -119,7 +119,31 @@ class QueueManager(commands.Cog):
                 await ctx.send(f'`{uname}` has been removed from the queue `{spec_queue.name}`')
             except RuntimeError:
                 await ctx.send(f'`{uname}` is not in the queue.')
-    
+
+    @commands.command()
+    async def next(self, ctx, *args):
+        """Cycle the queue to the next challenger"""
+        if len(args) == 0:
+            await ctx.send('No queue name specified! Example: `q!next myqueue`')
+            return
+        else:
+            q_name = args[0]
+            uname = ctx.message.author.name
+
+            if not self.__queue_exists(q_name, self.queues):
+                await ctx.send(f'Could not find the given queue `{q_name}`.')
+                return
+            elif self.queues[q_name].owner != uname:
+                await ctx.send(f'Only the owner `{self.queues[q_name].owner}` can make changes to this queue.')
+                return
+            else:
+                spec_queue = self.queues[q_name]
+                most_recent_player = spec_queue.list[0]
+                spec_queue.remove(most_recent_player)
+                spec_queue.add(most_recent_player)
+                await ctx.send(f'Queue `{q_name}` has been rotated.')
+
+
     def __queue_exists(self, q_name, q_map):
         return q_name in q_map.keys()
 

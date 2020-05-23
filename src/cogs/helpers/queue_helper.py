@@ -19,6 +19,6 @@ class Queue:
         if not self.__name_is_in_queue(name):
             raise RuntimeError('Specified name is not in the queue.')
         self.list.remove(name)
-
+    
     def __name_is_in_queue(self, name):
         return name in self.list
